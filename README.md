@@ -4,17 +4,17 @@ A small platformer about a post office that isn't quite where it should be.
 
 ## Play it
 
-**In your browser:** https://claude.ai/artifact/2wytd3GUinuAFvbBZohvbz
+**In your browser:** https://sean-spear.github.io/working-as-intended-public/
 
-**On Windows:** [download the latest build](https://github.com/Sean-Spear/working-as-intended-public/releases/latest/download/WorkingAsIntended-Windows.zip).
+**On Windows:** [download WorkingAsIntended-Windows.zip](https://github.com/Sean-Spear/working-as-intended-public/raw/main/WorkingAsIntended-Windows.zip).
 Unzip it and double-click `WorkingAsIntended.exe`.
 
 - **First launch.** Windows may say "Windows protected your PC", because the game isn't code-signed. Click **More info**, then **Run anyway**. It only asks once.
 - **Requirements.** Windows 10 or 11, 64-bit.
 
-**Offline in a browser:** each release also has `WorkingAsIntended.html`. Download it and open it in any modern browser.
+**Offline in a browser:** [download the game as one HTML file](https://github.com/Sean-Spear/working-as-intended-public/raw/main/index.html) (save it as `WorkingAsIntended.html`) and open it in any modern browser.
 
-Each new build replaces the files at those links, so the links always give you the latest. Older builds are listed under [Releases](https://github.com/Sean-Spear/working-as-intended-public/releases).
+Each new build replaces these files, so the links always give you the latest. The current build is named in [`BUILD`](BUILD).
 
 ## Saves
 
