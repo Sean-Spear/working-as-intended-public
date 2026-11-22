@@ -15,7 +15,7 @@
 <canvas id="game"></canvas>
 <canvas id="ui"></canvas>
 <script>
-const WAI_BUILD = 'build 2026-11-18 · 79f896a';
+const WAI_BUILD = 'build 2026-11-21 · 2051955';
 // ---- src/core.js
 // ============================================================================
 // WORKING AS INTENDED — core: constants, math, RNG, input, audio
@@ -17551,18 +17551,17 @@ WAI.courierNotice = courierNotice;
 //     hl_piste      THE TOP STATION    the T-bar up to the Piste (its five legs, unchanged); the run comes back here
 //     hl_links      THE CLUBHOUSE      the way out to the first tee (the eighteen holes, unchanged); the chairlift
 //                                      from the 18th comes back here
-//     hl_switchback THE SWITCHBACK     a funicular up a steep slope: the car, its rails, the winding house; or the
-//                                      steps cut beside the track
+//     hl_switchback THE SWITCHBACK     ski down the slope, ride the funicular up (Redesign 5/5)
 //     hl_workshop   THE FOLDKEEPER'S WORKSHOP   the model sheet and its two clips (survey.js), the press that flattens
 //                                      it; a clipped strip pinned at this end (required since Redesign 3/5)
 //     hl_lodge      THE SNOWBOUND LODGE        an unfinished meal, coats by the door, an empty bedroom; the crease's
 //                                      other end, in the pantry
-//   connectors (as many as are wanted): every one a route, none an empty box
-//     hl_ridge      NARROW RIDGE       L R      stepping stones along a knife edge over ice
-//     hl_pass       SHELTERED PASS     L R D    under an overhang; a trapdoor down
-//     hl_bridge     PAPER BRIDGE       L R U    a sagging bridge over a gorge; a climb to the sky
-//     hl_face       ROCK FACE          L U D    a tall climb
-//     hl_windcut    WIND-CARVED CROSSING  L R U D  arches the wind made; the one room every doorway fits
+//   connectors (as many as are wanted): every one a route, none an empty box (Redesign 5/5: see THE CONNECTORS)
+//     hl_cornice    THE CORNICE        L R      a chasm under a snow cornice: ski the kicker, or glide on a crane
+//     hl_chimney    UPDRAFT CHIMNEY    L U D    a tall shaft of winds and cranes
+//     hl_bridge     PAPER BRIDGE       L R U    the torn bridge; through the tear, a crane and the wind up
+//     hl_windcut    WIND-CARVED CROSSING  L R U D  a pleat between arches, to a crane in the wind; every doorway fits
+//     hl_run        THE RUN            L R      a ski run on trestles, a kicker over a trench
 //
 // THE RULES (general, not per room; tested in tools/test_highlands_grid.py)
 //   1  an offer fits its doorway: the room has a door back toward where Pell comes from (as everywhere);
@@ -17583,7 +17582,7 @@ WAI.courierNotice = courierNotice;
   const OPP = { L: 'R', R: 'L', U: 'D', D: 'U' };
   const SNOW = () => 'snow';
   const UNIQ = ['hl_piste', 'hl_links', 'hl_switchback', 'hl_workshop', 'hl_lodge'];
-  const FILL = ['hl_ridge', 'hl_pass', 'hl_bridge', 'hl_face', 'hl_windcut'];
+  const FILL = ['hl_cornice', 'hl_chimney', 'hl_bridge', 'hl_windcut', 'hl_run'];
   D.uniques = UNIQ.slice(); D.fillers = FILL.slice(); D.required = ['hl_piste', 'hl_links'];
 
   // ======================================================================== the drafting rules
@@ -17804,86 +17803,215 @@ WAI.courierNotice = courierNotice;
     c.fillStyle = '#f4f8fc'; c.beginPath(); c.moveTo(x - 6, y + 2); c.lineTo(x + w / 2, y - h * 0.35); c.lineTo(x + w + 6, y + 2); c.lineTo(x + w + 6, y - 1); c.lineTo(x + w / 2, y - h * 0.35 - 3); c.lineTo(x - 6, y - 1); c.fill();
     if (sign) { c.fillStyle = '#f2ead6'; c.fillRect(x + w / 2 - 30, y + 3, 60, 9); c.fillStyle = '#2e2c34'; c.font = '6px Georgia, serif'; c.textAlign = 'center'; c.fillText(sign, x + w / 2, y + 10); c.textAlign = 'left'; }
   }
-  const climb = (b, xa, xb, w, y0, y1) => { for (let y = y0, k = 0; y >= y1; y -= 3, k++) b.plat(k % 2 ? xb : xa, y, w); };
-
-  // ======================================================================== THE CONNECTORS
+  // ======================================================================== THE CONNECTORS (Highlands Redesign 5/5)
+  // Each one a route with a shape of its own, built from the mountain's three ways of moving: cranes (and the
+  // updrafts that lift them), skis (and the deep snow under a walker's boots), pleats. None of them is a ladder.
+  //   hl_cornice   THE CORNICE        L R      a chasm too wide to jump, under a snow cornice: leap from the lip and
+  //                                            catch a crane, or ski the run and fly the kicker
+  //   hl_chimney   THE UPDRAFT CHIMNEY L U D   a tall shaft of wind: three updrafts, three cranes, ledges on
+  //                                            alternate walls to rest on and catch the next
+  //   hl_bridge    PAPER BRIDGE       L R U    the sagging bridge, torn through in the middle: drop through the tear,
+  //                                            catch the crane below, and the wind carries you up out of the sky door
+  //   hl_windcut   WIND-CARVED CROSSING L R U D  a pleat strung between two rock arches over a gorge: hang and slide
+  //                                            across; let go over the hatch, or onto the crane in the wind for the
+  //                                            sky door
+  //   hl_run       THE RUN            L R      a short steep ski run on trestles, a kicker over a snow trench: fast
+  //                                            on skis, a wade and a scramble on foot; a crane in the trench back up
+  // (Sheltered Pass, Rock Face and Narrow Ridge are gone; old suspended runs that drafted them get their nearest
+  // successor: see the aliases below.)
   const conn = (id, name, extra) => Object.assign({ id, name, short: name, subtitle: 'The Highlands', theme: 'highland', tileStyle: SNOW }, extra);
+  const strata = (c, x0, y0, x1, y1, step) => { c.strokeStyle = 'rgba(60,70,90,0.22)'; c.lineWidth = 1; for (let y = y0 + 3; y < y1; y += step || 6) { c.beginPath(); c.moveTo(px(x0), px(y)); c.lineTo(px(x1), px(y) + 3); c.stroke(); } };
+  const gusts = (c, x0, x1, y0, y1, n) => { c.strokeStyle = 'rgba(255,255,255,0.4)'; c.lineWidth = 1; for (let k = 0; k < n; k++) { const y = px(y0 + (y1 - y0) * ((k * 37) % n) / n), x = px(x0 + (x1 - x0) * ((k * 53) % n) / n); c.beginPath(); c.moveTo(x, y); c.quadraticCurveTo(x + 18, y - 3, x + 36, y); c.stroke(); } };
+  const roostPost = (c, x, y) => { c.fillStyle = '#5a4a3a'; c.fillRect(px(x) - 1, px(y) + 2, 2, px(1)); c.fillStyle = '#8a6a44'; c.fillRect(px(x) - 4, px(y) + 1, 8, 2); };   // a little perch a crane keeps to
+  const icicles = (c, x, y, w) => { c.fillStyle = 'rgba(220,236,250,0.9)'; for (let k = 0; k < w * 2; k++) { const h = 3 + ((k * 7) % 5); c.fillRect(px(x) + k * 4 + 1, px(y), 2, h); } };
 
-  // NARROW RIDGE: stepping stones along a knife edge; ice below
-  ROOM_DEFS.hl_ridge = conn('hl_ridge', 'Narrow Ridge', {
-    W: 72, H: 36, doorSides: ['L', 'R'],
+  // THE CORNICE: the west bank ends at a lip over a chasm of ice; the east bank is lower, under a great overhang of
+  // snow (the cornice) whose lip hangs icicles. Two ways over: leap off the lip and catch the crane that keeps to the
+  // chasm wall just under it, ride the wind a little and glide over (not too high: the icicles); or ski the run from
+  // the west door and let the kicker throw you across. Coming back west: the east bank's crane, and the updraft in
+  // the chasm, high enough to glide home over the run.
+  const CO = { run: [8, 10, 26, 26], kick: [26, 26, 29, 23.6] };
+  ROOM_DEFS.hl_cornice = conn('hl_cornice', 'The Cornice', {
+    W: 80, H: 40, doorSides: ['L', 'R'], spawn: { x: 4, y: 10 },
     build(b) {
-      b.shell(); b.door('L', 26, 29); b.door('R', 26, 29);
-      b.fill(0, 30, 14, 6); b.fill(58, 30, 14, 6);
-      b.fill(14, 34, 44, 2); b.spikes(14, 33, 44);
-      for (const [x, top, w] of [[18, 28, 4], [26, 26, 4], [34, 24, 5], [43, 26, 4], [51, 28, 4]]) b.fill(x, top, w, 34 - top);
-      fn(b, c => { cairn(c, px(36), px(24)); pennant(c, px(38) + 2, px(24), '#c8402e'); pennant(c, px(20), px(28), '#5a7a9a'); pennant(c, px(53), px(28), '#5a7a9a'); });
+      b.shell(); b.door('L', 5, 9); b.fill(0, 10, 8, 30);                     // the start, by the west door
+      WAI.rampBody(b, ...CO.run, 40); WAI.rampBody(b, ...CO.kick, 40);           // the run, and the kicker at the lip
+      b.ent('ramp', { x0: CO.run[0], y0: CO.run[1], x1: CO.run[2], y1: CO.run[3] });
+      b.ent('ramp', { x0: CO.kick[0], y0: CO.kick[1], x1: CO.kick[2], y1: CO.kick[3] });
+      b.spikes(29, 37, 23);                                                       // the ice at the bottom
+      b.fill(52, 30, 28, 10); b.door('R', 25, 29);                               // the east bank, lower
+      b.fill(48, 2, 30, 4); b.fill(44, 2, 8, 10); b.spikes(44, 12, 8, 'D');       // the cornice, and its lip of icicles
+      b.ent('crane', { id: 'co_w', x: 25.5, y: 21.2 });                              // in the dip before the kicker (a skier going by on the snow doesn't take it)
+      b.ent('crane', { id: 'co_e', x: 56, y: 28.4 });                            // on the east bank
+      b.ent('draft', { x: 38, y: 2, w: 5, h: 35 });                              // the wind up the chasm
+      b.ent('draft', { x: 19, y: 2, w: 5, h: 22 });                              // ...and over the run (a skier on the snow isn't lifted: a crane in the air is)
+      b.ent('checkpoint', { x: 4, y: 10 }); b.ent('checkpoint', { x: 70, y: 30 });
+      b.ent('sign', { x: 66, y: 27, w: 2, h: 3, look: 'sign', title: 'A marker post', text: 'THE CORNICE\n\nDo not stand on the overhang.\n\n(Underneath it is fine. Underneath it is the way.)' });
+      fn(b, c => {
+        strata(c, 52, 30, 80, 40, 4); strata(c, 0, 18, 6, 40, 5);
+        roostPost(c, 56, 28.4);
+        // flags on the run, and the lip's red marker
+        for (const [x, y, col] of [[10, 20, '#c8402e'], [16, 23, '#3a6ab0'], [22, 25.6, '#c8402e']]) { c.fillStyle = col; c.fillRect(px(x), px(y) - 12, 2, 12); c.fillRect(px(x) + 2, px(y) - 12, 5, 3); }
+        c.fillStyle = '#c8402e'; for (let k = 0; k < 3; k++) c.fillRect(px(26), px(24) - 4 - k * 4, 3, 2);
+        gusts(c, 38, 43, 8, 34, 6); gusts(c, 19, 24, 4, 18, 4);
+      });
+      // the cornice itself (in front of its rock): a heavy curl of packed snow, blue underneath, its lip hung with ice
+      fn(b, c => {
+        c.fillStyle = '#eef3f8'; c.fillRect(px(44), px(2), px(8), px(10)); c.fillRect(px(48), px(2), px(30), px(4));
+        c.beginPath(); c.moveTo(px(44), px(3)); c.quadraticCurveTo(px(42), px(7), px(44), px(12)); c.lineTo(px(45), px(12)); c.lineTo(px(45), px(3)); c.fill();
+        c.fillStyle = '#ffffff'; c.fillRect(px(44), px(2), px(34), 3);
+        c.fillStyle = 'rgba(140,170,210,0.55)'; c.fillRect(px(52), px(6) - 5, px(26), 5); c.fillRect(px(44), px(12) - 5, px(8), 5);
+        c.strokeStyle = 'rgba(140,170,210,0.45)'; c.lineWidth = 1; for (const y of [3.4, 4.6]) { c.beginPath(); c.moveTo(px(46), px(y) + 2); c.quadraticCurveTo(px(62), px(y) - 2, px(78), px(y) + 1); c.stroke(); }
+      }, true);
     },
   });
-  // SHELTERED PASS: under an overhang, out of the wind; a trapdoor in the floor
-  ROOM_DEFS.hl_pass = conn('hl_pass', 'Sheltered Pass', {
-    W: 64, H: 40, doorSides: ['L', 'R', 'D'],
+
+  // THE UPDRAFT CHIMNEY: a tall shaft in the rock with the wind coming up it. At the foot a crane, and an updraft up
+  // the west side; a ledge on the east wall with a crane at its tip; an updraft up the middle to a ledge on the west
+  // wall, its own crane; an updraft up the east side, out of the sky door. Hold one crane the whole way (from wind to
+  // wind) or rest on the ledges and take the next. (A climber can wall-jump some of it.)
+  ROOM_DEFS.hl_chimney = conn('hl_chimney', 'The Updraft Chimney', {
+    short: 'Updraft Chimney', W: 48, H: 60, doorSides: ['L', 'U', 'D'], spawn: { x: 6, y: 56 },
     build(b) {
-      b.shell(); b.fill(0, 36, 64, 4); b.door('L', 31, 35); b.door('R', 31, 35); b.door('D', 30, 33); b.clear(30, 36, 4, 1); b.plat(30, 36, 4);
-      b.fill(8, 2, 48, 10); b.fill(12, 12, 8, 3); b.fill(24, 12, 14, 5); b.fill(42, 12, 10, 3);   // the overhang
-      b.fill(16, 33, 4, 3); b.fill(44, 32, 5, 4);                                                    // boulders
-      b.plat(22, 29, 6); b.plat(36, 28, 6);
+      b.shell(); b.fill(2, 56, 44, 2); b.door('L', 51, 55); b.door('U', 37, 40); b.door('D', 24, 27); b.clear(24, 56, 4, 1); b.plat(24, 56, 4);
+      b.fill(34, 38, 12, 2);                                   // the east ledge
+      b.fill(2, 22, 12, 2);                                    // the west ledge
+      b.ent('crane', { id: 'ch_a', x: 12, y: 54 }); b.ent('draft', { x: 6, y: 28, w: 6, h: 28 });
+      b.ent('crane', { id: 'ch_b', x: 32.5, y: 36.6 }); b.ent('draft', { x: 18, y: 14, w: 6, h: 32 });
+      b.ent('crane', { id: 'ch_c', x: 15.5, y: 20.6 }); b.ent('draft', { x: 36, y: -3, w: 6, h: 33, paperOnly: true });
+      b.ent('checkpoint', { x: 6, y: 56 });
+      b.ent('sign', { x: 42, y: 35, w: 2, h: 3, look: 'none', title: 'Scratched into the rock', text: 'Three winds up this chimney, and a bird for each.\n\nIf you let one go, the next is waiting.' });
       fn(b, c => {
-        // a shepherd's stone shelter under the rock, a lantern hook, and the wind's streaks outside it
-        c.fillStyle = '#8a8478'; c.fillRect(px(24), px(30), px(12), px(6)); c.fillStyle = '#6a6458'; c.fillRect(px(28), px(32), px(4), px(4));
-        c.fillStyle = '#9a9488'; for (let k = 0; k < 12; k++) c.fillRect(px(24) + (k % 4) * 24 + (k >> 2) % 2 * 12, px(30) + (k >> 2) * 16, 22, 1);
-        c.fillStyle = '#4a3a2a'; c.fillRect(px(30), px(17), 1, 10); c.fillStyle = '#e8c070'; c.fillRect(px(30) - 2, px(17) + 10, 5, 5);
+        // a chimney of rock: darker back wall (darkest at its sides, where the shaft closes in), lighter cracks, snow on
+        // every ledge, and the sky at the top
+        c.fillStyle = 'rgba(80,90,110,0.12)'; c.fillRect(px(2), px(2), px(44), px(54));
+        for (const [x0, d] of [[2, 1], [46, -1]]) for (let k = 0; k < 6; k++) { c.fillStyle = `rgba(60,68,86,${0.16 - k * 0.025})`; c.fillRect(px(x0) + (d > 0 ? k * 6 : -(k + 1) * 6), px(2), 6, px(54)); }
+        c.strokeStyle = 'rgba(40,46,60,0.35)'; c.lineWidth = 1;
+        for (const [x0, y0, x1, y1] of [[24, 4, 28, 20], [10, 30, 6, 44], [30, 44, 36, 54], [40, 12, 44, 26]]) { c.beginPath(); c.moveTo(px(x0), px(y0)); c.lineTo(px((x0 + x1) / 2) + 4, px((y0 + y1) / 2)); c.lineTo(px(x1), px(y1)); c.stroke(); }
+        for (const [x, y] of [[12, 54], [32.5, 36.6], [15.5, 20.6]]) roostPost(c, x, y);
+        gusts(c, 6, 12, 30, 52, 5); gusts(c, 18, 24, 16, 44, 5); gusts(c, 36, 42, 2, 28, 5);
       });
     },
   });
-  // PAPER BRIDGE: a bridge of folded paper that sags across a gorge; a climb up the far side to the sky
+
+  // PAPER BRIDGE: the bridge of folded paper still sags across the gorge, but its middle has torn through. The tear
+  // is on purpose (the ropes are tied off either side of it): through it, the gorge's floor is soft snow, and a crane
+  // keeps to it in the updraft that comes up through the tear and out of the sky door overhead.
   ROOM_DEFS.hl_bridge = conn('hl_bridge', 'Paper Bridge', {
-    W: 72, H: 40, doorSides: ['L', 'R', 'U'],
+    W: 72, H: 44, doorSides: ['L', 'R', 'U'], spawn: { x: 6, y: 30 },
     build(b) {
-      b.shell(); b.door('L', 25, 29); b.door('R', 25, 29); b.door('U', 34, 37);
-      b.fill(0, 30, 16, 10); b.fill(56, 30, 16, 10);
-      b.fill(16, 38, 40, 2); b.spikes(16, 37, 40);
-      b.plat(16, 30, 8); b.plat(24, 31, 8); b.plat(32, 32, 8); b.plat(40, 31, 8); b.plat(48, 30, 8);
-      climb(b, 30, 38, 4, 29, 5); b.plat(34, 3, 4);
+      b.shell(); b.door('L', 25, 29); b.door('R', 25, 29); b.door('U', 39, 42);
+      b.fill(0, 30, 16, 14); b.fill(56, 30, 16, 14);
+      b.fill(16, 40, 40, 2);                                   // the gorge's floor: deep, soft snow
+      b.plat(16, 30, 17); b.plat(39, 30, 17);   // the spans (the tear between them, 33-38)
+      b.ent('crane', { id: 'br_c', x: 35.5, y: 38.2 });
+      b.ent('draft', { x: 33, y: -3, w: 10, h: 43, paperOnly: true });
+      b.ent('checkpoint', { x: 6, y: 30 }); b.ent('checkpoint', { x: 66, y: 30 });
       fn(b, c => {
-        // the bridge's paper: folded panels hung from two ropes, and strips fluttering under the top
-        c.strokeStyle = '#6a5a4a'; c.lineWidth = 1; c.beginPath(); c.moveTo(px(16), px(26)); c.quadraticCurveTo(px(36), px(31), px(56), px(26)); c.stroke();
-        for (let x = 17; x < 56; x += 2) { const sag = 26 + 5 * (1 - Math.pow((x - 36) / 20, 2)); c.fillStyle = '#5a4a3a'; c.fillRect(px(x), px(sag) - 2, 1, (px(30 + (x > 24 && x < 48 ? (x > 32 && x < 40 ? 2 : 1) : 0)) - px(sag)) + 2); }
-        for (let x = 16; x < 56; x++) { const y = x < 24 || x >= 48 ? 30 : x < 32 || x >= 40 ? 31 : 32; c.fillStyle = x % 2 ? '#f4eedc' : '#e6dcc4'; c.fillRect(px(x), px(y), 8, 3); }
+        strata(c, 0, 30, 16, 44, 4); strata(c, 56, 30, 72, 44, 4);
+        // the ropes, tied off at the tear; the panels; the torn edges, curling
+        c.strokeStyle = '#6a5a4a'; c.lineWidth = 1;
+        c.beginPath(); c.moveTo(px(16), px(26)); c.quadraticCurveTo(px(25), px(29.5), px(33), px(29)); c.stroke();
+        c.beginPath(); c.moveTo(px(39), px(29)); c.quadraticCurveTo(px(47), px(29.5), px(56), px(26)); c.stroke();
+        for (const x of [33, 39]) { c.fillStyle = '#5a4a3a'; c.fillRect(px(x) - 1, px(29), 3, px(2) + 4); c.fillStyle = '#c8402e'; c.fillRect(px(x) - 2, px(29), 5, 2); }
+        for (let x = 17; x < 56; x += 2) { if (x >= 33 && x < 39) continue; const sag = 26 + 3.5 * (1 - Math.pow((x - 36) / 20, 2)); c.fillStyle = '#5a4a3a'; c.fillRect(px(x), px(sag) - 2, 1, (px(30) - px(sag)) + 2); }
+        for (let x = 16; x < 56; x++) { if (x >= 33 && x < 39) continue; c.fillStyle = x % 2 ? '#f4eedc' : '#e6dcc4'; c.fillRect(px(x), px(30), 8, 3); }
+        for (const [x, d] of [[33, -1], [39, 1]]) { c.fillStyle = '#efe6d0'; for (let k = 0; k < 4; k++) c.fillRect(px(x) + d * (2 + k * 2) - (d < 0 ? 2 : 0), px(30) + 2 + k * 2, 2, 3); }
+        // the gorge's floor (soft snow) and the crane's post
+        c.fillStyle = '#eef3f8'; c.fillRect(px(16), px(40) - 2, px(40), 2); roostPost(c, 35.5, 38.2);
         paperStrips(c, px(4), px(68), px(2), 22);
+        gusts(c, 33, 39, 4, 36, 7);
       });
     },
   });
-  // ROCK FACE: a tall climb, ledge over ledge; a hatch at the foot
-  ROOM_DEFS.hl_face = conn('hl_face', 'Rock Face', {
-    W: 52, H: 56, doorSides: ['L', 'U', 'D'],
-    build(b) {
-      b.shell(); b.fill(0, 52, 52, 4); b.door('L', 47, 51); b.door('U', 24, 27); b.door('D', 36, 39); b.clear(36, 52, 4, 1); b.plat(36, 52, 4);
-      b.fill(2, 6, 8, 36); b.fill(42, 8, 8, 30); b.fill(10, 18, 3, 2); b.fill(39, 28, 3, 2);   // the buttresses
-      climb(b, 16, 26, 6, 49, 5); b.plat(24, 3, 4);
-      fn(b, c => {
-        // strata in the rock, a rope bolted up the face, and a climber's tin of chalk on the bottom ledge
-        c.strokeStyle = 'rgba(70,80,96,0.35)'; c.lineWidth = 1; for (let y = 8; y < 44; y += 5) { c.beginPath(); c.moveTo(px(2), px(y)); c.lineTo(px(10), px(y) + 6); c.stroke(); c.beginPath(); c.moveTo(px(42), px(y) + 4); c.lineTo(px(50), px(y)); c.stroke(); }
-        c.strokeStyle = '#c8a050'; c.beginPath(); c.moveTo(px(23), px(4)); for (let y = 6; y < 50; y += 6) c.quadraticCurveTo(px(23) + (y % 12 ? 6 : -6), px(y) - 3, px(23), px(y)); c.stroke();
-        c.fillStyle = '#e0e0e0'; c.fillRect(px(18), px(49) - 4, 4, 4);
-      });
-    },
-  });
-  // WIND-CARVED CROSSING: arches the wind made, doors on every side
+
+  // WIND-CARVED CROSSING: two rock arches the wind made, on banks either side of a gorge, and a pleat strung between
+  // them (pinned to the west arch's leg, through the east arch). Hang from it and slide east across the gorge. Let go
+  // of it over the floor for the hatch; let go over the crane in the wind for the sky door; or ride it to the end and
+  // fly off it onto the east bank. Back west: the crane, the wind, a glide.
   ROOM_DEFS.hl_windcut = conn('hl_windcut', 'Wind-Carved Crossing', {
-    short: 'Wind Crossing', W: 64, H: 44, doorSides: ['L', 'R', 'U', 'D'],
+    short: 'Wind Crossing', W: 64, H: 40, doorSides: ['L', 'R', 'U', 'D'], spawn: { x: 6, y: 20 },
     build(b) {
-      b.shell(); b.fill(0, 40, 64, 4); b.door('L', 35, 39); b.door('R', 35, 39); b.door('U', 30, 33); b.door('D', 30, 33); b.clear(30, 40, 4, 1); b.plat(30, 40, 4);
-      b.fill(4, 6, 16, 9); b.clear(8, 9, 8, 4); b.fill(44, 6, 16, 9); b.clear(48, 9, 8, 4);       // two arches, holed through
-      b.fill(6, 26, 10, 2); b.fill(48, 24, 10, 2);                                                 // shelves under them
-      climb(b, 24, 34, 6, 37, 5); b.plat(30, 3, 4);
+      b.shell();
+      b.fill(0, 20, 14, 20);                                   // the west bank
+      b.fill(50, 28, 14, 12);                                  // the east bank
+      b.fill(14, 36, 36, 2);                                   // the gorge's floor
+      b.fill(39, 34, 7, 2);                                    // a drift where the wind drops what it carries (under the crane)
+      b.door('L', 15, 19); b.door('R', 23, 27); b.door('U', 46, 49); b.door('D', 30, 33); b.clear(30, 36, 4, 1); b.plat(30, 36, 4);   // (the hatch)
+      b.ent('pleat', { x0: 15, y0: 21, x1: 38, y1: 24.5 });
+      b.ent('crane', { id: 'wc_c', x: 42.5, y: 29.4 });
+      b.ent('draft', { x: 40, y: -3, w: 10, h: 39, paperOnly: true });
+      b.ent('checkpoint', { x: 6, y: 20 }); b.ent('checkpoint', { x: 58, y: 28 });
       fn(b, c => {
-        c.strokeStyle = 'rgba(255,255,255,0.45)'; c.lineWidth = 1;
-        for (let k = 0; k < 9; k++) { const y = px(16 + k * 2.6), x = px(4 + (k * 17 % 40)); c.beginPath(); c.moveTo(x, y); c.quadraticCurveTo(x + 30, y - 4, x + 60, y); c.stroke(); }
-        c.fillStyle = 'rgba(90,100,118,0.35)'; for (const [x, y] of [[8, 9], [48, 9]]) { c.fillRect(px(x), px(y) + px(4) - 2, px(8), 2); }
+        strata(c, 0, 20, 14, 40, 4); strata(c, 50, 28, 64, 40, 4);
+        // the arches (behind): weathered rock, hollowed through by the wind; the pleat runs through them
+        // (far off, behind the banks: pale, so nobody takes them for something to stand on)
+        const arch = (x0, x1, top, foot) => {
+          c.fillStyle = 'rgba(150,162,184,0.55)'; c.beginPath(); c.moveTo(px(x0), px(foot)); c.lineTo(px(x0), px(top + 1)); c.quadraticCurveTo(px((x0 + x1) / 2), px(top - 2), px(x1), px(top + 1)); c.lineTo(px(x1), px(foot)); c.lineTo(px(x1 - 2), px(foot));
+          c.lineTo(px(x1 - 2), px(top + 4)); c.quadraticCurveTo(px((x0 + x1) / 2), px(top + 1), px(x0 + 2), px(top + 4)); c.lineTo(px(x0 + 2), px(foot)); c.closePath(); c.fill();
+          c.strokeStyle = 'rgba(255,255,255,0.35)'; c.lineWidth = 1; c.beginPath(); c.moveTo(px(x0), px(top + 1)); c.quadraticCurveTo(px((x0 + x1) / 2), px(top - 2), px(x1), px(top + 1)); c.stroke();
+        };
+        arch(2, 16, 9, 20); arch(46, 62, 13, 28);
+        c.fillStyle = '#5a4a3a'; c.fillRect(px(14) + 2, px(21) - 3, 3, 6);   // the pleat's west pin, driven into the arch's foot
+        gusts(c, 4, 60, 4, 18, 9); gusts(c, 40, 46, 4, 34, 5);
+        
+        c.fillStyle = '#eef3f8'; c.fillRect(px(14), px(36) - 2, px(36), 2); c.beginPath(); c.ellipse(px(42.5), px(34), px(4), px(0.8), 0, Math.PI, 0); c.fill();
+        c.fillStyle = '#5a4a3a'; c.fillRect(px(30), px(36) + 2, px(4), 2);
       });
     },
   });
+
+  // THE RUN: a short, steep ski run on timber trestles from the west door, a kicker at its foot, and a trench of soft
+  // snow before the east bank. On skis: down, off the kicker, over the trench, out of the east door at speed. On foot:
+  // wade down the run (or drop off it and walk under), cross the trench, wade up the bank. Coming back: up onto the
+  // run's foot and wade up; or (on skis, which won't climb) the crane in the trench and its updraft, high enough to
+  // glide home to the start.
+  const RU = { run: [6, 14, 40, 33], kick: [40, 33, 43, 31.4], bank: [46, 36, 56, 30] };
+  ROOM_DEFS.hl_run = conn('hl_run', 'The Run', {
+    W: 72, H: 40, doorSides: ['L', 'R'], spawn: { x: 3, y: 14 },
+    build(b) {
+      b.shell(); b.door('L', 9, 13); b.fill(0, 14, 6, 26);                       // the start, by the west door
+      b.fill(6, 36, 40, 2);                                                       // the ground under the trestles
+      b.ent('ramp', { x0: RU.run[0], y0: RU.run[1], x1: RU.run[2], y1: RU.run[3], deck: true, foot: 36 });
+      b.ent('ramp', { x0: RU.kick[0], y0: RU.kick[1], x1: RU.kick[2], y1: RU.kick[3], deck: true, foot: 36 });
+      WAI.rampBody(b, ...RU.bank, 40); b.fill(56, 30, 16, 10); b.door('R', 25, 29);   // the bank, and the east side
+      b.ent('ramp', { x0: RU.bank[0], y0: RU.bank[1], x1: RU.bank[2], y1: RU.bank[3] });
+      b.ent('crane', { id: 'ru_c', x: 47.5, y: 31.8 });
+      b.ent('draft', { x: 46, y: 1, w: 5, h: 35 });
+      b.ent('draft', { x: 18, y: 1, w: 5, h: 21 });                                // (and a wind halfway up the run, to carry a glider on home to the gate)
+      b.ent('checkpoint', { x: 3, y: 14 }); b.ent('checkpoint', { x: 64, y: 30 });
+      b.ent('sign', { x: 2, y: 11, w: 2, h: 3, look: 'sign', title: 'At the top of the run', text: 'THE RUN\n\nSkis: straight down, and keep them flat off the kicker.\n\nWalkers: mind the trench.' });
+      fn(b, c => {
+        strata(c, 0, 14, 6, 40, 5); strata(c, 56, 30, 72, 40, 4);
+        // the start hut's gate, flags down the run, and the trench's soft snow
+        c.fillStyle = '#5a4a3a'; c.fillRect(px(5), px(8), 2, px(6)); c.fillStyle = '#c8402e'; c.fillRect(px(5) + 2, px(8), 8, 4); c.fillStyle = '#f6f2e6'; c.fillRect(px(5) + 2, px(8) + 1, 8, 1);
+        for (const [x, col] of [[14, '#c8402e'], [22, '#3a6ab0'], [30, '#c8402e'], [37, '#3a6ab0']]) { const y = 14 + (x - 6) * 19 / 34; c.fillStyle = col; c.fillRect(px(x), px(y) - 12, 2, 12); c.fillRect(px(x) + 2, px(y) - 12, 5, 3); }
+        c.fillStyle = '#eef3f8'; c.fillRect(px(41), px(36) - 2, px(6), 2); roostPost(c, 47.5, 31.8);
+        gusts(c, 46, 51, 4, 32, 6); gusts(c, 18, 23, 3, 19, 4);
+      });
+    },
+  });
+  // old suspended runs that drafted a connector this build doesn't have: its nearest successor (the same doors or
+  // more), so the night rebuilds whole (suspend.js; tested in test_redesign5.py)
+  WAI.HL_ALIAS = { hl_ridge: 'hl_cornice', hl_pass: 'hl_windcut', hl_face: 'hl_chimney' };
+  // Each successor has every door its old room had (Narrow Ridge L R -> the Cornice L R; Sheltered Pass L R D ->
+  // the Wind-Carved Crossing, all four; Rock Face L U D -> the Updraft Chimney L U D), so the night's doorways all
+  // still meet. A doorway's kept offers naming an old room name its successor. If Pell was standing in one of
+  // them, she resumes at its successor's checkpoint (the old room's coordinates mean nothing in the new one).
+  // Her permanent progress isn't in the night at all: it's untouched either way.
+  if (Game.prototype.resumeSuspended) {
+    const rs0 = Game.prototype.resumeSuspended;
+    Game.prototype.resumeSuspended = function () {
+      const s = this.save && this.save.suspend, w = s && s.worlds && s.worlds.highlands, A = WAI.HL_ALIAS;
+      if (w && Array.isArray(w.grid)) {
+        let moved = null;
+        w.grid = w.grid.map((id, i) => { if (A[id]) { if (s.at && s.at.district === 'highlands' && s.at.index === i) moved = A[id]; return A[id]; } return id; });
+        for (const k in (w.offers || {})) { const e = w.offers[k]; if (e && Array.isArray(e.opts)) e.opts = e.opts.map(id => A[id] || id); }
+        if (moved) { const cp = (ROOM_DEFS[moved].spawn) || { x: 4, y: 10 }; s.at.x = cp.x * TILE; s.at.y = cp.y * TILE - 11; s.aliased = moved; }
+      }
+      return rs0.call(this);
+    };
+  }
 
   // ======================================================================== THE UNIQUES
   // THE TOP STATION: the T-bar hut, the best time on a board, the run's flags
@@ -17891,20 +18019,23 @@ WAI.courierNotice = courierNotice;
     short: 'Top Station', W: 64, H: 36, doorSides: ['L', 'R'],
     build(b) {
       b.shell(); b.fill(0, 32, 64, 4); b.door('L', 27, 31); b.door('R', 27, 31);
-      b.fill(8, 29, 6, 3);
-      // the practice run (Redesign 4/5): a groomed walkway of snow from a start ledge high on the east side, down west
-      // toward the T-bar's door, ending three rows up (off its end, a skier flies; a walker drops, or jumps back on).
-      // On skis, a first taste of speed in the grid; on foot, deep snow, walkable either way. It's a raised run, not a
-      // hill: the floor under it is open from door to door.
+      // the practice run (Redesign 4/5; 5/5): a groomed run on trestles from the start gate high on the east side (up
+      // the gate's stair), down west, and a little kicker at its foot that throws a skier out over the T-bar's
+      // door; the boards along the floor say how far she flew. On foot, deep snow, walkable either way; the floor
+      // under it is open from door to door. (The block that used to stand by the west door, doing nothing, is gone.)
       for (const [x, y, w] of [[57, 29, 4], [54, 26, 3], [53, 23, 7]]) b.plat(x, y, w);
       b.ent('ramp', { x0: 53, y0: 23, x1: 37, y1: 29, deck: true, foot: 32 });
+      b.ent('ramp', { x0: 37, y0: 29, x1: 34, y1: 27.6, deck: true, foot: 32 });
       fn(b, c => {
         hutFront(c, px(22), px(18), px(20), px(14), '#7a3a2a', '#9a6a44', 'PISTE · TOP STATION');
         // the T-bar's pylon and cable, running off up the mountain
         c.fillStyle = '#5a6474'; c.fillRect(px(50), px(6), 3, px(21)); c.fillRect(px(48), px(6), 10, 3);
         c.strokeStyle = '#3a4250'; c.lineWidth = 1; c.beginPath(); c.moveTo(px(42), px(16)); c.lineTo(px(51), px(7)); c.lineTo(px(64), px(2)); c.stroke();
         for (const x of [55, 60]) { c.strokeStyle = '#3a4250'; c.beginPath(); c.moveTo(px(x), px(5) - (x - 55)); c.lineTo(px(x), px(5) - (x - 55) + 18); c.stroke(); c.fillStyle = '#c8402e'; c.fillRect(px(x) - 5, px(5) - (x - 55) + 18, 11, 2); }
-        for (const x of [6, 16, 58]) pennant(c, px(x), px(32), x % 2 ? '#c8402e' : '#3a6ab0');
+        for (const x of [6, 58]) pennant(c, px(x), px(32), x % 2 ? '#c8402e' : '#3a6ab0');
+        // the start gate at the top of the run, and the distance boards along the floor below the kicker
+        c.fillStyle = '#3a3a4a'; c.fillRect(px(53), px(23) - 16, 2, 16); c.fillRect(px(59), px(23) - 16, 2, 16); c.fillStyle = '#c8402e'; c.fillRect(px(53), px(23) - 17, px(6) + 2, 4); c.fillStyle = '#f6f2e6'; c.font = '4px monospace'; c.fillText('START', px(54) + 3, px(23) - 14);
+        for (const [x, t] of [[26, '10'], [18, '20'], [10, '30']]) { c.fillStyle = '#5a4030'; c.fillRect(px(x), px(32) - 7, 1, 7); c.fillStyle = '#f2ead6'; c.fillRect(px(x) - 5, px(32) - 12, 11, 6); c.fillStyle = '#2e2c34'; c.font = '4px monospace'; c.fillText(t, px(x) - 3, px(32) - 7.5); }
       });
       b.ent('hlportal', { x: 32, y: 32, to: 'ski', label: 'T-BAR' });
       b.ent('sign', { x: 44, y: 29, w: 2, h: 3, look: 'board', title: 'The run', text: g => `THE PISTE\n\nFive legs, one run. Fall anywhere and the T-bar brings you back up.\n\nT-BAR: SKIERS ONLY.\n\n${g.save.pisteBest ? 'Best time: ' + g.save.pisteBest.toFixed(2) + ' s' : 'No time on the board yet.'}` });
@@ -17916,7 +18047,6 @@ WAI.courierNotice = courierNotice;
     short: 'Clubhouse', W: 64, H: 36, doorSides: ['L', 'R'],
     build(b) {
       b.shell(); b.fill(0, 32, 64, 4); b.door('L', 27, 31); b.door('R', 27, 31);
-      b.fill(50, 30, 8, 2); b.plat(10, 28, 6);
       fn(b, c => {
         hutFront(c, px(20), px(17), px(24), px(15), '#3a5a3a', '#c8b48a', 'THE LINKS · CLUBHOUSE');
         c.fillStyle = '#8ab45e'; c.fillRect(px(46), px(32) - 2, px(16), 2);                 // a strip of green, out the back
@@ -17928,38 +18058,69 @@ WAI.courierNotice = courierNotice;
       b.ent('checkpoint', { x: 14, y: 32 });
     },
   });
-  // THE SWITCHBACK: a funicular up a steep slope. The car runs up its rails and back; the steps beside it are for
-  // anyone who'd rather climb. The winding house at the top turns the cable.
+  // THE SWITCHBACK (Redesign 5/5): ski down, ride up. A real slope of groomed snow from the winding house's deck (top
+  // right, by the east door) all the way down to the west door; on skis a long fast run, on foot deep snow, walkable
+  // either way. Above it on its own trestle, the funicular: a red car that runs up and down without stopping for
+  // long, from the buffer stop at the bottom to the deck at the top (its top stop is the run's start: step off it
+  // onto the deck, or straight off it onto the snow). The old steps beside the track are gone: the car does that.
+  // (THE LONG FOLD: the blueprint's thin spot from here to the Long Slope can't exist under the strict rule. The
+  // Long Slope is cell 7, (2,D); the squares that lie on (2,D) are (2,A) long, (3,D) short and (3,A) quarters, and
+  // all three are taken by rooms that only ever stand there: the Col, the Ski Hut, the Lower Station. The
+  // Switchback is drafted anywhere, so no fold of the sheet can join it to the slope. DEVELOPER_NOTES §73.)
+  const SW = { slope: [10, 40, 62, 15], car: [[3, 37], [14, 30.5], [58, 14]] };
   ROOM_DEFS.hl_switchback = conn('hl_switchback', 'The Switchback', {
-    short: 'Switchback', W: 80, H: 44, doorSides: ['L', 'R'],
+    short: 'Switchback', W: 80, H: 44, doorSides: ['L', 'R'], spawn: { x: 5, y: 40 },
     build(b) {
-      b.shell(); b.fill(0, 40, 80, 4); b.door('L', 35, 39); b.door('R', 17, 21);
-      b.fill(64, 22, 16, 22);                                    // the top station's platform
-      for (const [x, y] of [[10, 36], [19, 33], [28, 30], [37, 27], [46, 24], [55, 21]]) b.plat(x, y, 6);   // the steps
-      b.ent('mover', { path: [[6, 39], [58, 22]], w: 6, h: 1, speed: 26, oneWay: true, look: 'funicular' });
+      b.shell(); b.fill(0, 40, 80, 4); b.door('L', 35, 39); b.door('R', 9, 13);
+      b.fill(64, 14, 16, 30);                                    // the winding house's deck
+      WAI.rampBody(b, ...SW.slope, 44); b.fill(62, 15, 2, 29);   // (the run starts a step below the deck)
+      b.ent('ramp', { x0: SW.slope[0], y0: SW.slope[1], x1: SW.slope[2], y1: SW.slope[3] });
+      b.ent('mover', { path: SW.car, w: 6, h: 1, speed: 76, pause: 1.6, oneWay: true, look: 'funicular' });
+      b.ent('checkpoint', { x: 5, y: 40 }); b.ent('checkpoint', { x: 72, y: 14 });
       fn(b, c => {
-        // the rails and their sleepers, along the car's path
-        const x0 = px(6), y0 = px(39), x1 = px(64), y1 = px(22) - (px(22) - px(39)) * (6 / 52) * 0, dx = x1 - x0, dy = px(22) - y0;
+        // the trestle and the track: timber legs down to the snow, the rails along the car's path
+        const pts = SW.car.map(([x, y]) => [px(x), px(y) + 9]);
+        c.fillStyle = '#6a4a30';
+        for (let k = 0; k + 1 < pts.length; k++) { const [ax, ay] = pts[k], [bx, by] = pts[k + 1], n = Math.ceil(Math.hypot(bx - ax, by - ay) / 28);
+          for (let j = 1; j < n; j++) { const x = ax + (bx - ax) * j / n, y = ay + (by - ay) * j / n, foot = px(40) - (px(40) - px(15)) * Math.max(0, Math.min(1, (x - px(10)) / (px(62) - px(10)))); c.fillRect(Math.round(x) + 10, y + 2, 2, Math.max(0, foot - y - 2)); c.fillRect(Math.round(x) + 6, y + 2, 10, 2); } }
         c.strokeStyle = '#4a4238'; c.lineWidth = 1;
-        for (const o of [px(1), px(5)]) { c.beginPath(); c.moveTo(x0 + o, y0 + 9); c.lineTo(px(58) + o, px(22) + 9); c.stroke(); }
-        c.fillStyle = '#6a5a44'; for (let k = 0; k <= 26; k++) { const t = k / 26, x = x0 + (px(58) - x0) * t, y = y0 + dy * t; c.fillRect(Math.round(x) - 1, Math.round(y) + 8, px(6) + 2, 2); }
-        // the winding house on the top platform, with its big wheel's housing
-        c.fillStyle = '#6a5a4a'; c.fillRect(px(68), px(12), px(10), px(10)); c.fillStyle = '#4a3a2e'; c.beginPath(); c.moveTo(px(67), px(12)); c.lineTo(px(73), px(8)); c.lineTo(px(79), px(12)); c.fill();
-        c.fillStyle = '#f2ead6'; c.fillRect(px(68) + 4, px(13), px(10) - 8, 7); c.fillStyle = '#2e2c34'; c.font = '5px monospace'; c.textAlign = 'center'; c.fillText('WINDING', px(73), px(13) + 6); c.textAlign = 'left';
+        for (const o of [px(1), px(5)]) { c.beginPath(); c.moveTo(pts[0][0] + o, pts[0][1]); for (const [x, y] of pts.slice(1)) c.lineTo(x + o, y); c.stroke(); }
+        c.fillStyle = '#6a5a44'; for (let k = 0; k + 1 < pts.length; k++) { const [ax, ay] = pts[k], [bx, by] = pts[k + 1], n = Math.ceil(Math.hypot(bx - ax, by - ay) / 9); for (let j = 0; j <= n; j++) c.fillRect(Math.round(ax + (bx - ax) * j / n) - 1, Math.round(ay + (by - ay) * j / n) - 1, px(6) + 2, 2); }
+        // flags down the run
+        for (const [x, col] of [[20, '#c8402e'], [30, '#3a6ab0'], [40, '#c8402e'], [50, '#3a6ab0'], [58, '#c8402e']]) { const y = 40 - (x - 10) * 25 / 52; c.fillStyle = col; c.fillRect(px(x), px(y) - 12, 2, 12); c.fillRect(px(x) + 2, px(y) - 12, 5, 3); }
+        // the winding house on the deck, with its big wheel's housing
+        c.fillStyle = '#6a5a4a'; c.fillRect(px(68), px(4), px(10), px(10)); c.fillStyle = '#4a3a2e'; c.beginPath(); c.moveTo(px(67), px(4)); c.lineTo(px(73), px(0) + 2); c.lineTo(px(79), px(4)); c.fill();
+        c.fillStyle = '#f2ead6'; c.fillRect(px(68) + 4, px(5), px(10) - 8, 7); c.fillStyle = '#2e2c34'; c.font = '5px monospace'; c.textAlign = 'center'; c.fillText('WINDING', px(73), px(5) + 6); c.textAlign = 'left';
         // the bottom buffer stop
-        c.fillStyle = '#c8402e'; c.fillRect(px(4), px(38), 6, 8); c.fillStyle = '#f2ead6'; c.fillRect(px(4) + 1, px(38) + 2, 4, 2);
+        c.fillStyle = '#c8402e'; c.fillRect(px(2), px(38), 6, 8); c.fillStyle = '#f2ead6'; c.fillRect(px(2) + 1, px(38) + 2, 4, 2);
       });
       // the big wheel turns while the car moves; the cable runs from it to the car
-      b.ent('prop', { x: 70, y: 16, drawFn: (c, e) => {
+      b.ent('prop', { x: 70, y: 8, drawFn: (c, e) => {
         const car = e.room.ents.find(m => m instanceof ENTITY_TYPES.mover), cx = e.x + 8, cy = e.y + 8, a = car ? (car.d || 0) / 9 : 0;
         if (car) { c.strokeStyle = '#2a2a30'; c.lineWidth = 1; c.beginPath(); c.moveTo(cx - 8, cy); c.lineTo(car.x + car.w, car.y - 1); c.stroke(); }
         c.strokeStyle = '#3a3a44'; c.lineWidth = 2; c.beginPath(); c.arc(cx, cy, 8, 0, 7); c.stroke();
         c.lineWidth = 1; for (let k = 0; k < 6; k++) { const t = a + k * Math.PI / 3; c.beginPath(); c.moveTo(cx, cy); c.lineTo(cx + Math.cos(t) * 8, cy + Math.sin(t) * 8); c.stroke(); }
         c.fillStyle = '#c9a24a'; c.fillRect(cx - 1, cy - 1, 3, 3);
       } });
-      b.ent('sign', { x: 4, y: 37, w: 2, h: 3, look: 'sign', title: 'The Switchback', text: 'THE SWITCHBACK FUNICULAR\n\nCar runs continuously. Hold on.\n\n(The steps are for people who do not trust the car. The car is for people who do not trust the steps.)' });
+      b.ent('sign', { x: 10, y: 37, w: 2, h: 3, look: 'sign', title: 'The Switchback', text: 'THE SWITCHBACK FUNICULAR\n\nUP: by car. It runs all day; step on at the buffers.\nDOWN: by ski.\n\n(Walkers: down by the snow, or by the car. Mind it at the top: it stops where the run starts.)' });
     },
   });
+  // the funicular car never crushes anyone (Redesign 5/5): it's a one-way platform on a trestle, and coming down to
+  // its bay at the buffers it can meet someone standing in the way. Whoever it meets and isn't riding it is moved
+  // clear of it (under it if it's coming down on them, onto it if it's coming up under them), never killed.
+  const mvu0 = ENTITY_TYPES.mover.prototype.update;
+  ENTITY_TYPES.mover.prototype.update = function (dt) {
+    const y0 = this.y; mvu0.call(this, dt);
+    if (this.s.look !== 'funicular') return;
+    this.passThrough = true;   // (board it from below or beside: jump up through it, as onto a lift)
+    const g = this.game, p = g && g.player; if (!p || p.dead || g.room !== this.room) return;
+    if (this.y === y0 || !(p.x < this.x + this.w && p.x + p.w > this.x && p.y < this.y + this.h && p.y + p.h > this.y) || p.y + p.h === this.y) return;   // (still, it's a lift to jump up through)
+    this.solidOff = true;
+    const side = p.x + p.w / 2 < this.x + this.w / 2 ? [[this.x - p.w - p.x, 0], [this.x + this.w - p.x, 0]] : [[this.x + this.w - p.x, 0], [this.x - p.w - p.x, 0]];
+    const tries = this.y < y0 ? [[0, this.y - p.h - p.y], ...side] : [[0, this.y + this.h - p.y], ...side];
+    for (const [dx, dy] of tries) if (!p.solidAt(p.x + dx, p.y + dy)) { p.x += dx; p.y += dy; p.rx = 0; p.ry = 0; break; }
+    this.solidOff = false;
+  };
   // the funicular car (a mover drawn as a little carriage)
   const mvd0 = ENTITY_TYPES.mover.prototype.draw;
   ENTITY_TYPES.mover.prototype.draw = function (c) {
@@ -18091,10 +18252,10 @@ WAI.courierNotice = courierNotice;
     hl_switchback: (c, x, y, z) => { c.beginPath(); c.moveTo(x, y + z); c.lineTo(x + z, y); c.moveTo(x + z * 0.1, y + z * 0.75); c.lineTo(x + z * 0.4, y + z * 0.75); c.lineTo(x + z * 0.4, y + z * 0.45); c.stroke(); },
     hl_workshop: (c, x, y, z) => { c.beginPath(); c.moveTo(x + z * 0.3, y); c.lineTo(x + z * 0.3, y + z * 0.85); c.arc(x + z * 0.5, y + z * 0.85, z * 0.2, Math.PI, 0, true); c.lineTo(x + z * 0.7, y + z * 0.2); c.stroke(); },
     hl_lodge: (c, x, y, z) => { c.beginPath(); c.moveTo(x, y + z * 0.45); c.lineTo(x + z * 0.5, y); c.lineTo(x + z, y + z * 0.45); c.moveTo(x + z * 0.15, y + z * 0.35); c.lineTo(x + z * 0.15, y + z); c.lineTo(x + z * 0.85, y + z); c.lineTo(x + z * 0.85, y + z * 0.35); c.stroke(); },
-    hl_ridge: (c, x, y, z) => { c.beginPath(); c.moveTo(x, y + z); c.lineTo(x + z * 0.3, y + z * 0.4); c.lineTo(x + z * 0.5, y + z * 0.55); c.lineTo(x + z * 0.75, y + z * 0.1); c.lineTo(x + z, y + z); c.stroke(); },
-    hl_pass: (c, x, y, z) => { c.beginPath(); c.moveTo(x, y + z * 0.3); c.quadraticCurveTo(x + z * 0.5, y - z * 0.1, x + z, y + z * 0.3); c.moveTo(x, y + z); c.lineTo(x + z, y + z); c.stroke(); },
+    hl_cornice: (c, x, y, z) => { c.beginPath(); c.moveTo(x, y + z * 0.45); c.lineTo(x + z * 0.35, y + z * 0.45); c.lineTo(x + z * 0.35, y + z); c.moveTo(x + z * 0.7, y + z); c.lineTo(x + z * 0.7, y + z * 0.65); c.lineTo(x + z, y + z * 0.65); c.moveTo(x + z * 0.45, y + z * 0.15); c.quadraticCurveTo(x + z * 0.6, y - z * 0.05, x + z, y + z * 0.1); c.stroke(); },
+    hl_chimney: (c, x, y, z) => { c.beginPath(); c.moveTo(x + z * 0.2, y + z); c.lineTo(x + z * 0.2, y); c.moveTo(x + z * 0.8, y + z); c.lineTo(x + z * 0.8, y); c.moveTo(x + z * 0.5, y + z * 0.85); c.lineTo(x + z * 0.5, y + z * 0.15); c.lineTo(x + z * 0.4, y + z * 0.3); c.moveTo(x + z * 0.5, y + z * 0.15); c.lineTo(x + z * 0.6, y + z * 0.3); c.stroke(); },
+    hl_run: (c, x, y, z) => { c.beginPath(); c.moveTo(x, y + z * 0.1); c.lineTo(x + z * 0.6, y + z * 0.75); c.lineTo(x + z * 0.7, y + z * 0.65); c.moveTo(x + z * 0.82, y + z); c.lineTo(x + z, y + z * 0.8); c.stroke(); },
     hl_bridge: (c, x, y, z) => { c.beginPath(); c.moveTo(x, y + z * 0.4); c.quadraticCurveTo(x + z * 0.5, y + z * 0.8, x + z, y + z * 0.4); c.stroke(); },
-    hl_face: (c, x, y, z) => { c.beginPath(); c.moveTo(x + z * 0.2, y + z); c.lineTo(x + z * 0.35, y); c.moveTo(x + z * 0.45, y + z * 0.8); c.lineTo(x + z * 0.75, y + z * 0.8); c.moveTo(x + z * 0.45, y + z * 0.45); c.lineTo(x + z * 0.75, y + z * 0.45); c.stroke(); },
     hl_windcut: (c, x, y, z) => { c.beginPath(); c.arc(x + z * 0.5, y + z * 0.7, z * 0.4, Math.PI, 0); c.stroke(); c.beginPath(); c.moveTo(x, y + z * 0.15); c.quadraticCurveTo(x + z * 0.5, y, x + z, y + z * 0.15); c.stroke(); },
   });
 })();
@@ -18550,7 +18711,12 @@ WAI.courierNotice = courierNotice;
       b.plat(5, 11, 3);                                              // (a step, under the west wall's thin spot)
       WAI.rampBody(b, ...SL.A, 50); b.fill(84, 44, 16, 6);          // the slope, and its run-out to the paper's edge
       b.door('D', 86, 89); b.clear(86, 44, 4, 3); b.plat(86, 44, 4);   // (a hatch in the run-out: down to row four)
-      for (const [x, y, w] of [[86, 41, 3], [80, 38, 3], [76, 35, 4], [68, 33, 5], [60, 30, 5], [52, 27, 5], [44, 24, 5], [36, 21, 5], [28, 18, 5], [20, 15, 4], [12, 12, 5]]) b.plat(x, y, w);   // the walk back up
+      // THE WAY BACK UP (Redesign 5/5): no more ledges. A crane keeps to the run-out, and the wind comes up the slope
+      // in three gusts: the tall one at the run-out, one halfway, one near the top. Catch the crane, rise, glide west
+      // into the next gust, rise, glide, and the last one sets you down by the START banner. (They lift paper, not
+      // a person: a skier's jump over the slope falls as it always did.) On foot, the deep snow walks back up too.
+      b.ent('crane', { id: 'sl_roost', x: 90.5, y: 42.4 });
+      for (const [x, h] of [[84, 43], [52, 30], [26, 19]]) b.ent('draft', { x, y: 1, w: 5, h, paperOnly: true });
       // (the slope is a ramp; the run-out isn't: off the snow she's on her feet, and the last few yards cost what they cost)
       b.ent('ramp', { x0: SL.A[0], y0: SL.A[1], x1: SL.A[2], y1: SL.A[3] });
       // THE SEAM: where the slope runs off the edge of the paper, it's creased
@@ -18567,6 +18733,9 @@ WAI.courierNotice = courierNotice;
         text: '19\n\nThe club\'s nineteenth hole. No yardage given.\n\nOn the back, in pencil: "The club\'s end is clipped in the chimney. Ours is about here somewhere. Stand it up."' });
       fn(b, c => {
         poles(c, [[22, 18.5, '#c8402e'], [36, 24.2, '#3a6ab0'], [50, 29.9, '#c8402e'], [64, 35.6, '#3a6ab0'], [78, 41.3, '#c8402e']]);
+        // the crane's post on the run-out, and a wind-sock on each gust's pole (they show where the wind comes up)
+        c.fillStyle = '#5a4a3a'; c.fillRect(P(90.5) - 1, P(42.4) + 2, 2, P(1.6)); c.fillStyle = '#8a6a44'; c.fillRect(P(90.5) - 4, P(42.4) + 1, 8, 2);
+        for (const [x, y] of [[84, 43.6], [52, 31], [26, 20.4]]) { c.fillStyle = '#4a4a54'; c.fillRect(P(x) - 1, P(y) - 22, 1, 22); c.fillStyle = '#e8762e'; c.beginPath(); c.moveTo(P(x), P(y) - 22); c.lineTo(P(x) + 9, P(y) - 24); c.lineTo(P(x) + 9, P(y) - 20); c.lineTo(P(x), P(y) - 18); c.fill(); c.fillStyle = '#f6f2e6'; c.fillRect(P(x) + 3, P(y) - 22, 2, 3); }
         // ski tracks, running off the end of the run-out into the crease
         c.strokeStyle = 'rgba(150,170,200,0.55)'; c.lineWidth = 1; for (const o of [2, 5]) { c.beginPath(); c.moveTo(P(84), P(44) - o); c.lineTo(P(92), P(44) - o); c.stroke(); }
         paperEdge(c, P(97), P(2), P(48));
@@ -18580,7 +18749,7 @@ WAI.courierNotice = courierNotice;
   };
 
   // ======================================================================== THE LOWER STATION (cell 8 only)
-  const ST = { gantry: [33, 22, 14], ledge: [59, 18, 8] };   // (the gantry starts at x 33 since 4/5: a jump and a dash from the upper platform or the carriage roof fell short of it then, so only the Seam's ski flight (holding Right) and the hyper reach it)
+  const ST = { gantry: [33, 22, 14], ledge: [59, 18, 12] };   // (the gantry starts at x 33 since 4/5: a jump and a dash from the upper platform or the carriage roof fell short of it then, so only the Seam's ski flight (holding Right) and the hyper reach it)
   ROOM_DEFS.hl_station = {
     id: 'hl_station', name: 'The Lower Station', short: 'Lower Station', subtitle: 'The Highlands', theme: 'highland', tileStyle: () => 'snow',
     W: 80, H: 50, doorSides: ['R', 'D'], avoidCells: only(8), spawn: { x: 72, y: 44 },
@@ -18594,7 +18763,12 @@ WAI.courierNotice = courierNotice;
       b.fill(12, 48, 32, 2); b.spikes(12, 47, 32);                    // the cutting
       b.fill(44, 44, 36, 6);                                           // the concourse (east)
       b.door('D', 64, 67); b.clear(64, 44, 4, 3); b.plat(64, 44, 4);   // a hatch down
-      for (const [x, y, w] of [[72, 41, 4], [67, 38, 4], [72, 35, 4], [67, 32, 4], [72, 29, 4], [67, 26, 4], [72, 23, 4], [69, 20, 3]]) b.plat(x, y, w);   // up to the east ledge
+      // UP TO THE EAST LEDGE (Redesign 5/5): no stair. A station crane keeps to the lamp bracket by the concourse's
+      // east end, and the wind comes up the platform's end wall as far as the ledge's height and no further: rise on
+      // it, then flap off the crane (Jump) up onto the ledge. (Nobody gets onto the ledge still holding a crane: so
+      // nobody floats from it to the gantry. The gantry is still the Seam's, or a super's from the ledge.)
+      b.ent('crane', { id: 'st_roost', x: 73.5, y: 42.4 });
+      b.ent('draft', { x: 72, y: 22, w: 6, h: 22 });
       b.fill(46, 11, 13, 4); b.spikes(46, 15, 13, 'D');               // ice hanging between the ledge and the gantry
       b.plat(...ST.ledge);
       b.plat(...ST.gantry);                                            // the signal gantry, hung over the cutting
@@ -18608,8 +18782,12 @@ WAI.courierNotice = courierNotice;
       b.ent('crane', { id: 'cabcrane', x: 9.2, y: 14.5 });
       b.ent('stamp', { id: 'signal', x: 33, y: 19.5, color: '#b8402e' });
       b.ent('checkpoint', { x: 76, y: 44 });
+      // the departures board reads what the sheet is doing (the station clock stops when it lies flat: survey.js)
       b.ent('sign', { x: 77, y: 41, w: 2, h: 3, look: 'sign', title: 'The departures board',
-        text: 'LOWER STATION\n\nUP: — — —\nDOWN: — — —\n\nNo. 2 carriage: OUT OF SERVICE (at the upper platform, locked up)\nLost property: one pr. skis, on the rack in No. 2\n\nChalked underneath: "how did it get over there"' });
+        text: g => {
+          const st = S().state(g), line = { flat: 'ALL SERVICES SUSPENDED. The line is lying flat: nothing runs through.\n(The clock has stopped with it.)', long: 'THROUGH SERVICE: none from this platform.', short: 'THROUGH SERVICE: No. 2 platform, via the Col (short).', quarters: 'THROUGH SERVICE: the Seam, west wall, high. Change for the Long Slope.' }[st];
+          return 'LOWER STATION\n\n' + line + '\n\nNo. 2 carriage: OUT OF SERVICE (at the upper platform, locked up)\nLost property: one pr. skis, on the rack in No. 2' + (g.save.skis ? ' (COLLECTED)' : '') + '\n\nChalked underneath: "how did it get over there"';
+        } });
       b.ent('sign', { x: 47, y: 41, w: 2, h: 3, look: 'none', title: 'A photograph, in a frame on the wall',
         text: 'OPENING DAY\n\nA doorway, and through it a railway platform with a red carriage waiting.\n\nThe doorway is the Lodge\'s: you know the pegs, and the coats on them.\n\nOn the mount, in pencil: "the short way round."' });
       b.ent('sign', { x: 56, y: 41, w: 2, h: 3, look: 'none', title: 'A crate, waiting to go',
@@ -18625,10 +18803,28 @@ WAI.courierNotice = courierNotice;
         c.fillStyle = '#4a3a2a'; c.fillRect(P(49), P(42), P(5), 2); c.fillRect(P(49), P(42) + 2, 1, 6); c.fillRect(P(54) - 1, P(42) + 2, 1, 6);
         c.fillStyle = '#e8dcc0'; c.fillRect(P(47), P(39), 12, 10); c.fillStyle = '#7a6a58'; c.fillRect(P(47) + 2, P(39) + 2, 8, 6); c.fillStyle = '#b8402e'; c.fillRect(P(47) + 6, P(39) + 4, 3, 3);
         c.fillStyle = '#9a7a52'; c.fillRect(P(55), P(41), P(3), P(3)); c.fillStyle = '#f2ead6'; c.fillRect(P(55) + 3, P(41) + 5, 14, 7); c.fillStyle = '#b22222'; c.fillRect(P(55) + 3, P(41) + 5, 14, 1);
-        // the gantry's frame and its signal arm
-        c.fillStyle = '#4a4a54'; c.fillRect(P(33), P(22) - 1, P(14), 2); for (const x of [33, 39, 47]) c.fillRect(P(x) - (x === 47 ? 2 : 0), 0, 2, P(22));
-        for (let y = 2; y < 14; y += 3) { c.fillRect(P(33), P(y), P(14), 1); }
-        c.fillStyle = '#c8402e'; c.fillRect(P(36), P(15), 10, 3); c.fillStyle = '#f6f2e6'; c.fillRect(P(36) + 7, P(15), 2, 3); c.fillStyle = '#4a4a54'; c.fillRect(P(39), P(15), 1, P(7));
+        // THE SIGNAL GANTRY (redrawn, Redesign 5/5): a railway gantry, not a window. Two riveted lattice legs from the
+        // roof girder down to the walkway, X-braced; a trussed girder across the top with its lamps; on the walkway
+        // a signal post with a semaphore arm (red, a white band, set at danger) and its lamp; a handrail; a number plate.
+        const IRON = '#3e4250', IRONL = '#5a6070';
+        const lattice = (x0, y0, w, h) => {
+          c.fillStyle = IRON; c.fillRect(x0, y0, 2, h); c.fillRect(x0 + w - 2, y0, 2, h);
+          c.strokeStyle = IRONL; c.lineWidth = 1; c.beginPath();
+          for (let y = y0; y < y0 + h - 1; y += w) { c.moveTo(x0 + 1, y); c.lineTo(x0 + w - 1, Math.min(y0 + h, y + w)); c.moveTo(x0 + w - 1, y); c.lineTo(x0 + 1, Math.min(y0 + h, y + w)); }
+          c.stroke(); c.fillStyle = IRON; for (let y = y0; y < y0 + h; y += w) c.fillRect(x0, y, w, 1);
+        };
+        lattice(P(33), P(3), 8, P(19)); lattice(P(46) - 2, P(3), 8, P(8));                 // the legs (the east one stops at the ice)
+        lattice(P(33), P(3), P(14) + 6, 7);                                                // the girder across the top
+        c.fillStyle = '#c9a24a'; for (let x = P(34); x < P(47); x += 6) c.fillRect(x, P(3) + 2, 1, 1);   // rivets
+        for (const x of [37, 43]) { c.fillStyle = IRON; c.fillRect(P(x), P(3) + 7, 1, 6); c.fillStyle = '#2a2a30'; c.fillRect(P(x) - 2, P(3) + 13, 5, 6); c.fillStyle = '#f2d870'; c.fillRect(P(x) - 1, P(3) + 15, 3, 2); }   // the girder's lamps
+        // the walkway's handrail, and its plate
+        c.fillStyle = IRON; c.fillRect(P(33), P(22) - 9, P(14), 1); for (let x = P(33); x <= P(47); x += 12) c.fillRect(x, P(22) - 9, 1, 9);
+        c.fillStyle = '#1e3a5a'; c.fillRect(P(41), P(22) + 1, 22, 7); c.fillStyle = '#f2ead6'; c.font = 'bold 5px monospace'; c.fillText('No. 4', P(41) + 3, P(22) + 7);
+        // the signal post, the semaphore arm at danger, and its lamp
+        c.fillStyle = IRON; c.fillRect(P(40), P(13), 2, P(9)); c.fillRect(P(40) - 2, P(13), 6, 2);
+        c.fillStyle = '#c8402e'; c.fillRect(P(41), P(14), 20, 4); c.fillStyle = '#f6f2e6'; c.fillRect(P(41) + 14, P(14), 3, 4);
+        c.fillStyle = '#2a2a30'; c.fillRect(P(40) - 5, P(14) - 1, 6, 8); c.fillStyle = '#e8402e'; c.fillRect(P(40) - 4, P(14), 4, 3); c.fillStyle = '#5ac85a'; c.fillRect(P(40) - 4, P(14) + 4, 4, 2);
+        c.fillStyle = 'rgba(255,120,80,0.25)'; c.beginPath(); c.arc(P(40) - 2, P(14) + 1, 6, 0, 7); c.fill();
         paperEdge(c, P(2) - 2, P(2), P(48));
         // the upper platform's board, hung under the roof: No. 2, and the way up (what the Col sees through its rock)
         c.fillStyle = '#4a3a2a'; c.fillRect(P(4), P(1), 1, P(4)); c.fillRect(P(11), P(1), 1, P(4));
